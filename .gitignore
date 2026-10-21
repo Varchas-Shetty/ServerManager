@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Local SSH server details
+/app/src/main/assets/known_hosts

@@ -1,3 +1,4 @@
+
 package com.example.servermanag
 
 import android.os.Bundle
@@ -15,43 +16,41 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.colorScheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.servermanag.ui.theme.ServerManagerTheme
 
-
-
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             ServerManagerTheme {
-                val cpuUsage = remember {
-                    mutableIntStateOf(35)
-                }
-                val memoryUsage = remember {
-                    mutableIntStateOf(value = 69)
-                }
-                val diskUsage = remember {
-                    mutableIntStateOf(value=10)
-                }
+                val viewModel: DashboardViewModel = viewModel()
+                val context = LocalContext.current
+
                 val metrics = ServerMetrics(
-                    cpuUsage = cpuUsage.intValue,
-                    memoryUsage = memoryUsage.intValue,
-                    diskUsage = diskUsage.intValue
+                    cpuUsage = viewModel.cpuUsage,
+                    memoryUsage = viewModel.memoryUsage,
+                    diskUsage = viewModel.diskUsage
                 )
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = colorScheme.background
@@ -76,10 +75,66 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.height(24.dp))
 
                         Text(
-                            text = "Server Status: Disconnected",
+                            text = "Server Status: ${
+                                viewModel.connectionStatus.name
+                                    .lowercase()
+                                    .replaceFirstChar { it.uppercase() }
+                            }",
                             style = MaterialTheme.typography.titleMedium
                         )
 
+                        OutlinedTextField(
+                            value = viewModel.ubuntuPassword,
+                            onValueChange = {
+                                viewModel.updateUbuntuPassword(it)
+                            },
+                            label = {
+                                Text("Ubuntu Password")
+                            },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password
+                            ),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Button(
+                            onClick = {
+                                viewModel.connectToUbuntu(context)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Connect to Ubuntu")
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                viewModel.runHostnameCommand(context)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Run hostname command")
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                viewModel.refreshServerMetrics(context)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Refresh Real Server Metrics")
+                        }
+                        Text(
+                            text = "Command output: ${
+                                viewModel.commandOutput.ifBlank { "No output yet" }
+                            }",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = viewModel.connectionMessage,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
 
                         Spacer(modifier = Modifier.height(14.dp))
 
@@ -108,40 +163,22 @@ class MainActivity : ComponentActivity() {
                             title = "Disk Usage",
                             usage = metrics.diskUsage
                         )
+
                         Button(
                             onClick = {
-                                cpuUsage.intValue =
-                                    if (cpuUsage.intValue == 35) 75 else 35
+                                viewModel.simulateServerUpdate()
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Change CPU Usage")
+                            Text("Simulate Server Update")
                         }
-                        Button(
-                            onClick = {
-                                memoryUsage.intValue = if(memoryUsage.intValue==69) 40 else 69
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        {
-                            Text("Change Memory Usage")
-                        }
-                        Button(
-                            onClick = {
-                                diskUsage.intValue = if(diskUsage.intValue == 10) 50 else 10
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        {
-                            Text("Change Disk Usage")
-                        }
-
                     }
                 }
             }
         }
     }
 }
+
 @Composable
 fun MetricCard(
     title: String,
@@ -150,7 +187,6 @@ fun MetricCard(
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
-
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
@@ -198,7 +234,10 @@ data class ServerMetrics(
 )
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
+fun Greeting(
+    name: String,
+    modifier: Modifier = Modifier
+) {
     Text(
         text = "Hello $name!",
         modifier = modifier
